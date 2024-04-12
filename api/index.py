@@ -1,6 +1,6 @@
-from flask import Flask
 import time
-from algos.hc import coordinates
+import json
+from flask import Flask
 
 app = Flask(__name__)
 
@@ -15,7 +15,38 @@ def partA():
     return {
         "timestamp": int(time.time()),
         "test_type": "Part A",
-        "layout": coordinates
+        "layout": json.dump(
+                                [
+                        [518, 331],
+                        [429, 389],
+                        [410, 390],
+                        [595, 464],
+                        [608, 164],
+                        [379, 194],
+                        [506, 247],
+                        [342, 313],
+                        [254, 393],
+                        [266, 486],
+                        [361, 451],
+                        [430, 557],
+                        [80, 542],
+                        [197, 304],
+                        [55, 342],
+                        [57, 18],
+                        [64, 66],
+                        [172, 126],
+                        [242, 58],
+                        [262, 192],
+                        [445, 104],
+                        [360, 49],
+                        [371, 43],
+                        [578, 47],
+                        [720, 108]
+                        # [767, 531],
+                        # [675, 348],
+                        # [635, 521]
+                    ]
+        )
     }
 
 @app.route("/part-b")

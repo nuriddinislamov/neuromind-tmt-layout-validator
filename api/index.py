@@ -1,5 +1,6 @@
 from flask import Flask
 import time
+from algos.hc import coordinates
 
 app = Flask(__name__)
 
@@ -13,7 +14,8 @@ def hello_world():
 def partA():
     return {
         "timestamp": int(time.time()),
-        "test_type": "Part A"
+        "test_type": "Part A",
+        "layout": coordinates
     }
 
 @app.route("/part-b")

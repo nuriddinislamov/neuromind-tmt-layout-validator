@@ -7,7 +7,20 @@ app = Flask(__name__)
 @app.route("/")
 def hello_world():
     return {
-        "status": "OK"
+        "timestamp": int(time.time()),
+        "status": "OK",
+        "student_id": "2117032",
+        "author": "Nuriddin Islamov",
+        "instructions": "Use one of the available endpoints and send a GET request to them. You will receive a valid TMT layout back in response. If it takes too long to respond, send the request again.",
+        "available_endpoints": [
+            "/part-a",
+            "/part-b"
+        ],
+        "descriptions": {
+            "/part-a": "The layout for Trail Making Test part A",
+            "/part-b": "The layout for Trail Making Test part B"
+        },
+        "github": "https://github.com/nuriddinislamov/neuromind-tmt-layout-validator"
     }
 
 @app.route("/part-a")

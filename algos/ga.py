@@ -1,126 +1,139 @@
 import random
 import matplotlib.pyplot as plt
-from deap import base, creator, tools, algorithms
+import json
+from datetime import datetime
 
-def create_individual():
-    return [(random.uniform(NODE_RADIUS, GRID_WIDTH - NODE_RADIUS),
-             random.uniform(NODE_RADIUS, GRID_HEIGHT - NODE_RADIUS)) for _ in range(NUM_NODES)]
+# Define constants
+GRID_SIZE = 256
+NODE_COUNT = 15
+NODE_RADIUS = 5
+POPULATION_SIZE = 100
+NUM_GENERATIONS = 1000
+MUTATION_RATE = 0.1
 
-def calculate_distance(point1, point2):
-    return ((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2) ** 0.5
+def generate_random_layout(grid_size, node_count):
+    """
+    Generate a random layout of nodes within the grid.
+    """
+    layout = []
+    for _ in range(node_count):
+        x = random.randint(0, grid_size - 1)
+        y = random.randint(0, grid_size - 1)
+        layout.append((x, y))
+    return layout
 
-def eval_placement(individual):
+
+def fitness_function(layout, node_radius):
+    crossings = count_crossings(layout)
+    sparseness_penalty = calculate_sparseness(layout, node_radius)
+    penalty = crossings + sparseness_penalty
+    return penalty
+
+def count_crossings(layout):
+    crossings = 0
+    for i in range(len(layout) - 2):
+        for j in range(i + 2, len(layout) - 1):
+            if segments_intersect(layout[i], layout[i + 1], layout[j], layout[j + 1]):
+                crossings += 1
+    return crossings
+
+def calculate_sparseness(layout, node_radius):
     total_distance = 0
-    min_distance = float('inf')  # Initialize with infinity
+    for i in range(len(layout) - 1):
+        total_distance += distance(layout[i], layout[i + 1])
+    average_distance = total_distance / len(layout)
+    ideal_distance = 2 * node_radius  # Ideal distance between nodes
+    sparseness_penalty = abs(ideal_distance - average_distance)
+    return sparseness_penalty
 
-    # Calculate the minimum distance between nodes to maximize sparsity
-    for i in range(NUM_NODES):
-        for j in range(i + 1, NUM_NODES):
-            dist = calculate_distance(individual[i], individual[j])
-            min_distance = min(min_distance, dist)
+def distance(point1, point2):
+    """Calculate the Euclidean distance between two points."""
+    return ((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2) ** 0.5
 
-    # Calculate total distance for the path (this could be part of another objective)
-    for i in range(NUM_NODES - 1):
-        total_distance += calculate_distance(individual[i], individual[i + 1])
-
-    # Compute a sparsity score, larger is better, so we take negative to minimize in GA
-    sparsity_score = -min_distance
-
-    # Return a tuple including the sparsity score
-    return total_distance, sparsity_score,
-
-def mutate_individual(individual):
-    """Mutate an individual by randomly adjusting the position of a node."""
-    for i in range(len(individual)):
-        if random.random() < MUTPB:
-            individual[i] = (random.uniform(NODE_RADIUS, GRID_WIDTH - NODE_RADIUS),
-                             random.uniform(NODE_RADIUS, GRID_HEIGHT - NODE_RADIUS))
-    return individual,
-
-def orientation(p, q, r):
-    val = (float(q[1] - p[1]) * (r[0] - q[0])) - (float(q[0] - p[0]) * (r[1] - q[1]))
-    if val == 0: return 0  # colinear
-    return 1 if val > 0 else 2  # clock or counterclock wise
-
-def on_segment(p, q, r):
-    if (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and
-            q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1])):
-        return True
-    return False
-
-def intersect(seg1_start, seg1_end, seg2_start, seg2_end):
-    """
-    Return True if line segments (p1, q1) and (p2, q2) intersect, otherwise False.
-    """
-    # Find the four orientations needed for general and special cases
-    o1 = orientation(seg1_start, seg1_end, seg2_start)
-    o2 = orientation(seg1_start, seg1_end, seg2_end)
-    o3 = orientation(seg2_start, seg2_end, seg1_start)
-    o4 = orientation(seg2_start, seg2_end, seg1_end)
+def segments_intersect(A, B, C, D):
+    o1 = orientation(A, B, C)
+    o2 = orientation(A, B, D)
+    o3 = orientation(C, D, A)
+    o4 = orientation(C, D, B)
 
     # General case
     if o1 != o2 and o3 != o4:
         return True
 
-    # Special Cases
-    if o1 == 0 and on_segment(seg1_start, seg2_start, seg1_end): return True
-    if o2 == 0 and on_segment(seg1_start, seg2_end, seg1_end): return True
-    if o3 == 0 and on_segment(seg2_start, seg1_start, seg2_end): return True
-    if o4 == 0 and on_segment(seg2_start, seg1_end, seg2_end): return True
+    # Special cases
+    if o1 == 0 and on_segment(A, C, B):
+        return True
+    if o2 == 0 and on_segment(A, D, B):
+        return True
+    if o3 == 0 and on_segment(C, A, D):
+        return True
+    if o4 == 0 and on_segment(C, B, D):
+        return True
 
-    return False  # Doesn't fall in any of the above cases
+    return False
 
-# Fitness and Individual
-creator.create("FitnessMulti", base.Fitness, weights=(-1.0, 1.0))  # Note the weights
-creator.create("Individual", list, fitness=creator.FitnessMulti)
+def orientation(p, q, r):
+    val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+    if val == 0:
+        return 0
+    return 1 if val > 0 else 2
 
-toolbox = base.Toolbox()
-toolbox.register("individual", tools.initIterate, creator.Individual, create_individual)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", mutate_individual)
-toolbox.register("select", tools.selNSGA2)  # Using NSGA-II for multi-objective optimization
-toolbox.register("evaluate", eval_placement)
-toolbox.register("mate", tools.cxTwoPoint)
+def on_segment(p, q, r):
+    return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and
+            q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
 
-# Constants
-NUM_NODES = 20
-GRID_WIDTH = 1024
-GRID_HEIGHT = 1024
-NODE_DIAMETER = 10
-NODE_RADIUS = NODE_DIAMETER / 2
-POPULATION_SIZE = 1000
-NUM_GENERATIONS = 250
-CXPB, MUTPB = 0.8, 0.2
+def mutate_layout(layout):
+    mutated_layout = layout[:]
 
+    index_to_mutate = random.randint(0, len(mutated_layout) - 1)
+    
+    new_x = random.randint(0, GRID_SIZE - 1)
+    new_y = random.randint(0, GRID_SIZE - 1)
+    
+    mutated_layout[index_to_mutate] = (new_x, new_y)
+    
+    return mutated_layout
 
-def main():
-    pop = toolbox.population(n=POPULATION_SIZE)
-    hof = tools.HallOfFame(1)
-    stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("min", min)
-
-    # Main GA loop with dynamic random seeds
-    final_pop, logbook = algorithms.eaSimple(pop, toolbox, CXPB, MUTPB, NUM_GENERATIONS,
-                                             stats=stats, halloffame=hof, verbose=True)
-
-    return final_pop, logbook, hof
-
-if __name__ == "__main__":
-    final_pop, logbook, hof = main()
-
-    # Visualize the best individual
-    best_ind = hof.items[0]
-    plt.figure(figsize=(GRID_WIDTH / 100, GRID_HEIGHT / 100))
-    for i, node in enumerate(best_ind):
-        plt.plot(node[0], node[1], 'o', markersize=NODE_DIAMETER, label=str(i+1) if i == 0 else "")
-        plt.text(node[0], node[1], str(i+1), ha='center', va='center')
-    for i in range(NUM_NODES - 1):
-        plt.plot((best_ind[i][0], best_ind[i+1][0]), (best_ind[i][1], best_ind[i+1][1]), 'k-')
-
-    plt.xlim(0, GRID_WIDTH)
-    plt.ylim(0, GRID_HEIGHT)
-    plt.title("Optimized Node Layout")
-    plt.xlabel("X-coordinate")
-    plt.ylabel("Y-coordinate")
+def plot_layout(layout):
+    """Plot the layout of nodes."""
+    plt.figure(figsize=(5, 5))
+    for i, (x, y) in enumerate(layout):
+        plt.scatter(x, y, color='yellow', s=200)
+        plt.text(x, y, str(i + 1), fontsize=14, ha='center', va='center')
+    plt.xlim(-1, GRID_SIZE)
+    plt.ylim(-1, GRID_SIZE)
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title('Final Layout')
+    plt.grid(True)
     plt.show()
+
+def convert_layout_to_json(layout):
+    """Convert the layout to JSON format."""
+    json_data = {
+        'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'node_count': len(layout),
+        'layout': layout
+    }
+    return json.dumps(json_data, indent=4)
+
+# Main loop
+population = [generate_random_layout(GRID_SIZE, NODE_COUNT) for _ in range(POPULATION_SIZE)]
+best_layout = None
+best_fitness = float('inf')
+for generation in range(NUM_GENERATIONS):
+    for layout in population:
+        fitness = fitness_function(layout, NODE_RADIUS)
+        if fitness < best_fitness:
+            best_layout = layout
+            best_fitness = fitness
+    population = [mutate_layout(layout) for layout in population]
+
+# Plot the best layout if it exists
+if best_layout:
+    json_layout = convert_layout_to_json(best_layout)
+    print(json_layout)
+    plot_layout(best_layout)
+else:
+    print("No valid layout without edge crossings found.")

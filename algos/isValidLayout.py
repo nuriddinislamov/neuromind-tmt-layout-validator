@@ -38,9 +38,3 @@ def is_layout_valid(layout):
                 return False
     
     return True
-
-# layout = [[2, 2], [2, 4], [4, 3], [3, 3]]
-layout = \
-    [(992, 749), (757, 621), (613, 504), (666, 893), (285, 834), (229, 892), (533, 920), (794, 873), (670, 635), (755, 845), (174, 746), (324, 333), (386, 280), (499, 117), (530, 118), (490, 451), (425, 612), (144, 713), (451, 477), (876, 142)]
-validity = is_layout_valid(layout)
-print(f"Is the layout valid? {'Yes' if validity else 'No'}")

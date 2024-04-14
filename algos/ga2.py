@@ -1,139 +1,98 @@
 import random
 import matplotlib.pyplot as plt
-import json
-from datetime import datetime
-
-# Define constants
-GRID_SIZE = 256
-NODE_COUNT = 15
-NODE_RADIUS = 5
-POPULATION_SIZE = 100
-NUM_GENERATIONS = 1000
-MUTATION_RATE = 0.1
-
-def generate_random_layout(grid_size, node_count):
-    """
-    Generate a random layout of nodes within the grid.
-    """
-    layout = []
-    for _ in range(node_count):
-        x = random.randint(0, grid_size - 1)
-        y = random.randint(0, grid_size - 1)
-        layout.append((x, y))
-    return layout
-
-
-def fitness_function(layout, node_radius):
-    crossings = count_crossings(layout)
-    sparseness_penalty = calculate_sparseness(layout, node_radius)
-    penalty = crossings + sparseness_penalty
-    return penalty
-
-def count_crossings(layout):
-    crossings = 0
-    for i in range(len(layout) - 2):
-        for j in range(i + 2, len(layout) - 1):
-            if segments_intersect(layout[i], layout[i + 1], layout[j], layout[j + 1]):
-                crossings += 1
-    return crossings
-
-def calculate_sparseness(layout, node_radius):
-    total_distance = 0
-    for i in range(len(layout) - 1):
-        total_distance += distance(layout[i], layout[i + 1])
-    average_distance = total_distance / len(layout)
-    ideal_distance = 2 * node_radius  # Ideal distance between nodes
-    sparseness_penalty = abs(ideal_distance - average_distance)
-    return sparseness_penalty
-
-def distance(point1, point2):
-    """Calculate the Euclidean distance between two points."""
-    return ((point2[0] - point1[0]) ** 2 + (point2[1] - point1[1]) ** 2) ** 0.5
-
-def segments_intersect(A, B, C, D):
-    o1 = orientation(A, B, C)
-    o2 = orientation(A, B, D)
-    o3 = orientation(C, D, A)
-    o4 = orientation(C, D, B)
-
-    # General case
-    if o1 != o2 and o3 != o4:
-        return True
-
-    # Special cases
-    if o1 == 0 and on_segment(A, C, B):
-        return True
-    if o2 == 0 and on_segment(A, D, B):
-        return True
-    if o3 == 0 and on_segment(C, A, D):
-        return True
-    if o4 == 0 and on_segment(C, B, D):
-        return True
-
-    return False
-
-def orientation(p, q, r):
-    val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
-    if val == 0:
-        return 0
-    return 1 if val > 0 else 2
-
-def on_segment(p, q, r):
-    return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and
-            q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
-
-def mutate_layout(layout):
-    mutated_layout = layout[:]
-
-    index_to_mutate = random.randint(0, len(mutated_layout) - 1)
-    
-    new_x = random.randint(0, GRID_SIZE - 1)
-    new_y = random.randint(0, GRID_SIZE - 1)
-    
-    mutated_layout[index_to_mutate] = (new_x, new_y)
-    
-    return mutated_layout
 
 def plot_layout(layout):
-    """Plot the layout of nodes."""
-    plt.figure(figsize=(5, 5))
-    for i, (x, y) in enumerate(layout):
-        plt.scatter(x, y, color='yellow', s=200)
-        plt.text(x, y, str(i + 1), fontsize=14, ha='center', va='center')
-    plt.xlim(-1, GRID_SIZE)
-    plt.ylim(-1, GRID_SIZE)
-    plt.gca().set_aspect('equal', adjustable='box')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Final Layout')
+    x, y = zip(*layout)
+    plt.figure(figsize=(10, 10))
+    plt.scatter(x, y, c='blue', marker='o')
+    for i in range(len(layout)):
+        plt.text(layout[i][0], layout[i][1], str(i+1), color="red", fontsize=12, ha='center')
+    plt.title('Trail Making Test Layout')
     plt.grid(True)
+    plt.xlim(0, 1000)
+    plt.ylim(0, 1000)
     plt.show()
 
-def convert_layout_to_json(layout):
-    """Convert the layout to JSON format."""
-    json_data = {
-        'date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'node_count': len(layout),
-        'layout': layout
-    }
-    return json.dumps(json_data, indent=4)
+def is_layout_valid(layout):
+    def segments_intersect(p1, p2, q1, q2):
+        def orientation(p, q, r):
+            val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
+            if val == 0:
+                return 0  
+            elif val > 0:
+                return 1  
+            else:
+                return 2 
 
-# Main loop
-population = [generate_random_layout(GRID_SIZE, NODE_COUNT) for _ in range(POPULATION_SIZE)]
-best_layout = None
-best_fitness = float('inf')
-for generation in range(NUM_GENERATIONS):
-    for layout in population:
-        fitness = fitness_function(layout, NODE_RADIUS)
-        if fitness < best_fitness:
-            best_layout = layout
-            best_fitness = fitness
-    population = [mutate_layout(layout) for layout in population]
+        def on_segment(p, q, r):
+            if min(p[0], r[0]) <= q[0] <= max(p[0], r[0]) and min(p[1], r[1]) <= q[1] <= max(p[1], r[1]):
+                return True
+            return False
 
-# Plot the best layout if it exists
-if best_layout:
-    json_layout = convert_layout_to_json(best_layout)
-    print(json_layout)
-    plot_layout(best_layout)
-else:
-    print("No valid layout without edge crossings found.")
+        o1 = orientation(p1, p2, q1)
+        o2 = orientation(p1, p2, q2)
+        o3 = orientation(q1, q2, p1)
+        o4 = orientation(q1, q2, p2)
+
+        if o1 != o2 and o3 != o4:
+            return True
+
+        if o1 == 0 and on_segment(p1, q1, p2): return True
+        if o2 == 0 and on_segment(p1, q2, p2): return True
+        if o3 == 0 and on_segment(q1, p1, q2): return True
+        if o4 == 0 and on_segment(q1, p2, q2): return True
+
+        return False
+
+    num_nodes = len(layout)
+    valid_segments = 0
+    for i in range(num_nodes - 1):
+        for j in range(i + 1, num_nodes):
+            if not segments_intersect(layout[i], layout[(i + 1) % num_nodes], layout[j], layout[(j + 1) % num_nodes]):
+                valid_segments += 1
+    return valid_segments
+
+def initialize_population(size, num_nodes, grid_size):
+    return [[(random.randint(0, grid_size), random.randint(0, grid_size)) for _ in range(num_nodes)] for _ in range(size)]
+
+def compute_fitness(population):
+    return [is_layout_valid(layout) for layout in population]
+
+def select_parents(population, fitness, num_parents):
+    return random.choices(population, weights=fitness, k=num_parents)
+
+def crossover(parent1, parent2):
+    point = random.randint(1, len(parent1) - 1)
+    return parent1[:point] + parent2[point:]
+
+def mutate(layout, mutation_rate, grid_size):
+    for i in range(len(layout)):
+        if random.random() < mutation_rate:
+            layout[i] = (random.randint(0, grid_size), random.randint(0, grid_size))
+    return layout
+
+def genetic_algorithm(grid_size=1024, num_nodes=25, population_size=50, generations=100, mutation_rate=0.01):
+    population = initialize_population(population_size, num_nodes, grid_size)
+    grid = grid_size
+    h = {"grid_size": grid}
+    for _ in range(generations):
+        fitness = compute_fitness(population)
+        new_population = []
+        while len(new_population) < population_size:
+            parent1, parent2 = select_parents(population, fitness, 2)
+            child = crossover(parent1, parent2)
+            child = mutate(child, mutation_rate, grid_size)
+            new_population.append(child)
+        population = new_population
+    fitness = compute_fitness(population)
+    best_index = fitness.index(max(fitness))
+    best_layout = population[best_index]
+    h["layout"] = best_layout
+
+    # Uncommenting the following line (97) will break the API
+    # as it is designed to plot the coordinates on a visual graph
+    # for debugging and development purposes only
+
+
+    # plot_layout(best_layout)
+    return h

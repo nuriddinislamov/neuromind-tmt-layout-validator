@@ -1,6 +1,7 @@
 import time
 import json
 from flask import Flask
+from algos import ga2
 
 app = Flask(__name__)
 
@@ -25,18 +26,25 @@ def hello_world():
 
 @app.route("/part-a")
 def partA():
-    layout = [(992, 749), (757, 621), (613, 504), (666, 893), (285, 834), (229, 892), (533, 920), (794, 873), (670, 635), (755, 845), (174, 746), (324, 333), (386, 280), (499, 117), (530, 118), (490, 451), (425, 612), (144, 713), (451, 477), (876, 142)]
+    # layout = [(992, 749), (757, 621), (613, 504), (666, 893), (285, 834), (229, 892), (533, 920), (794, 873), (670, 635), (755, 845), (174, 746), (324, 333), (386, 280), (499, 117), (530, 118), (490, 451), (425, 612), (144, 713), (451, 477), (876, 142)]
+    res = ga2.genetic_algorithm()
+    layout = [list(coordinate) for coordinate in res["layout"]]
     return {
         "timestamp": int(time.time()),
         "test_type": "Part A",
         "num_of_nodes": len(layout),
-        "grid_size": 1024,
+        "grid_size": res["grid_size"],
         "layout": layout
     }
 
 @app.route("/part-b")
 def partB():
+    res = ga2.genetic_algorithm()
+    layout = [list(coordinate) for coordinate in res["layout"]]
     return {
         "timestamp": int(time.time()),
-        "test_type": "Part B"
+        "test_type": "Part B",
+        "num_of_nodes": len(layout),
+        "grid_size": res["grid_size"],
+        "layout": layout
     }
